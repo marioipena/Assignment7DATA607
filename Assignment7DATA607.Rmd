@@ -1,0 +1,124 @@
+---
+title: "CUNY SPS - Master of Science in Data Science - DATA607"
+author: "Mario Pena"
+date: "November 17, 2019"
+output: 
+  html_document:
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Assignment 7: NoSQL Migration
+
+
+**Assignment Description: In this assignment, we will take the information from a ralational database and migrate it to a NoSQL database of our choosing. I will use the "data skills" database created for project 3 and migrate it to a MongoDB database.**
+
+
+## Load Database
+
+I will first connect to the MySQL database, which resides in AWS and extract the tables I will use for the MongoDB database:
+
+```{r}
+library(DBI)
+skills_db <- dbConnect(RMySQL::MySQL(), 
+                dbname = "data607project3", 
+                host = "database-1.cxdov2mcmzlo.us-east-2.rds.amazonaws.com", 
+                port = 3306, 
+                user = "admin",
+                password = "Data__607")
+
+software <- dbReadTable(skills_db, "softwareskills")
+computing <- dbReadTable(skills_db, "computingskills")
+education <- dbReadTable(skills_db, "educationlevels")
+```
+
+
+## Create Database and Collections in MongoDB
+
+The environment in MongoDB is set up by creating the database of where the data will be inserted and the names of the collections for each table:
+
+```{r}
+library(mongolite)
+mongo_software <- mongo(collection = "software", db = "skills")
+mongo_computing <- mongo(collection = "computing", db = "skills")
+mongo_education <- mongo(collection = "education", db = "skills")
+```
+
+
+## Clear Collections and Insert Tables
+
+The tables we extracted from the MySQL database will be inserted in our newly created database and collections in MongoDB, but first we make sure we clear any data that might be in the collections:
+
+```{r}
+mongo_software$drop()
+mongo_software$insert(software)
+
+mongo_computing$drop()
+mongo_computing$insert(computing)
+
+mongo_education$drop()
+mongo_education$insert(education)
+```
+
+
+## Check for Migrated Data in MongoDB
+
+We have to make sure that our data was successfully migrated to our new MongoDB database:
+
+```{r}
+query_software <- mongo_software$find('{}', fields = '{"_id":0}')
+query_software
+mongo_software$count('{}') == nrow(software)
+
+query_computing <- mongo_computing$find('{}', fields = '{"_id":0}')
+query_computing
+mongo_computing$count('{}') == nrow(computing)
+
+query_education <- mongo_education$find('{}', fields = '{"_id":0}')
+query_education
+mongo_education$count('{}') == nrow(education)
+```
+
+
+## Advantages and Disadvantages Between SQL and NoSQL?
+
+First a quick overview of how each database is structured:
+
+SQL stands for Structured Query Language, and this is the language in which *relational* databases are written and read within the environment. Each database consists of tables that can be thought of as spreadsheets, where data is stored in columns representing the fileds and rows representing observations. Typically the talbes will have a *primary key* that will identify a specific observation and can be used to link or connect to data in other tables where this *primary key* would be called a *foreign key*.  
+
+On the other hand, NoSQL databases are the opposite of relational databases and do not require a schema. Instead of using tables like in a relational database, these databases are made up of documents, which are representations of an object in programming. This makes working with NoSQL databases a lot more flexible since they are not bound by columns and rows. Additionally, data that would otherwise be linked through different tables in SQL, is rather added as a property to an existing document.
+
+The database we decided to use will depend on what we're trying to build and what we want our data to look like, then we can pick the one that best meets our needs.
+
+**Arguments for using SQL include:**
+
+
+*Structured Data*
+
+There may be projects that need our data to be structured in a specific way in order to keep it organized in different tables that link to one another in some way.
+
+*ACID Compliance*
+
+Most SQL databases are ACID compliant, which means the integrity of your data is guaranteed.
+
+*Joins*
+
+This is a function that is very useful in SQL when developing complex applications. Retrieving multiple sets of data in different tables can be achieved through "joining", which there is no way of doing in a NoSQL database at the moment.
+
+**Arguments for using NoSQL include:**
+
+*Flexible*
+
+NoSQL databases allow for the user to structure data that a table could not easily support or in a way that would make the most sense for the application they are working on.
+
+*Fast*
+
+Even though these type of databases are not ACID compliant, they are significantly faster. NoSQL databases are much faster at querying, but it may cost you the speed you gain if your application requires to query several tables for needed data, which could be easily accomplished through "joining" in SQL. 
+
+*Ease of Use*
+
+Since we have everything represented as an object, it can be very easy to reason with these type of databases and there is a very little learning curve in using.
